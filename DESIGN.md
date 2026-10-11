@@ -13,58 +13,58 @@ a list of every convention in the exchange's records that had fooled a reader.
 This task is that list, turned into a repository. All data is synthetic. No real
 account data, keys or API calls are in it.
 
-## What makes it long-horizon
+## The task, version 3
 
-The bugs are layered, so fixing one exposes the next:
+fillbook 0.4 keeps a ledger of the exchange's daily exports in a SQLite store.
+Production has been running it, and its store is wrong. The solver has to make
+ingest, report and reconcile correct, keep them correct as exports keep
+arriving (some twice, some late, some correcting earlier ones), and repair the
+store 0.4 already wrote without re-ingesting anything.
 
-1. Fixing the meaning of `action` changes every NO position.
-2. Reading WebSocket `quantity` correctly turns zero-count fills into real ones.
-   Then the fills that appear in both sources start double-counting.
-3. Deduplicating "obvious" duplicates by value deletes real partial fills that
-   are identical except for `fill_id`.
-4. The cash identity still fails until every REST page is read. The starter
-   stops after five pages, and the sample has eight.
-5. With every fill right, the settlement cross-check still raises false alarms,
-   until it accounts for pairs netted before settlement.
+## The traps
 
-No single file or test points at all of this. The solver has to read the
-exchange's field reference, form a model of how cash moves, and check that
-model against an independent number (the account statement).
+In the parsing, carried over from versions 1 and 2:
 
-## The traps, and where each lives in the starter
-
-| Trap | Where | Effect if missed |
-|---|---|---|
-| `action` is the ticket verb, not open or close | `ledger.Position.apply` | NO entries booked as income |
-| NO fills priced from `yes_price` | `loader.normalize` | cost of every NO fill wrong |
-| WebSocket v1 uses dollars and `quantity` | `loader.normalize` | WS-only fills count as zero |
-| Same fill in REST and WebSocket | `loader.load_fills` | double-counted cost |
-| Identical partial fills with different `fill_id` | the data | value-based dedup drops real fills |
-| Pagination stops at `MAX_PAGES = 5` | `loader.load_rest_fills` | oldest markets vanish (52 of 70 settled markets on the sample) |
-| Pair netting credits $1 per pair at fill time | `ledger` | early closes scored as losses |
-| `by_day` keyed on UTC settle date | `report.build_report` | evening markets land on the next day |
-| A test encodes a record shape the exchange never emits | `tests/test_ledger.py::test_sell_books_proceeds` | a solver who trusts the tests keeps the bug |
-| Settlement `revenue` excludes netted pairs | the data | naive cross-check flags clean markets |
-
-Documented in the field reference, absent from the sample, present in the graded exports:
-
-| Behavior | Effect if missed |
+| Trap | Effect if missed |
 |---|---|
-| Busted fills (`status: "busted"` in REST, `fill_bust` messages on the WebSocket) | cancelled trades counted as real |
-| Voided markets (`market_result: "void"`, YES pays `settlement_value`) | crash on an unknown result, or the wrong payout |
-| Archived REST pages (`api_version: 1`, v1 field names and dollar units) | crash, or zero-count fills |
-| A settled market whose only fill was busted | market missing from the report |
+| `action` is the ticket verb, not open or close | NO entries booked as income |
+| NO fills priced from `yes_price` | cost of every NO fill wrong |
+| WebSocket and archived pages use v1: dollars, `quantity` | fills count as zero |
+| Pagination stops at five pages | late pages vanish |
+| Identical partial fills with different `fill_id` | value-based dedup drops real fills |
+| Pair netting credits $1 per pair at fill time | early closes scored as losses |
+| Voided markets pay `settlement_value` | wrong payout |
+| `by_day` keyed on UTC settle date | evening markets land on the next day |
+| A unit test encodes a record shape the exchange never emits | a solver who trusts the tests keeps the bug |
+
+In the ledger, new in version 3:
+
+| Trap | Effect if missed |
+|---|---|
+| The same fill appears in two exports (REST windows overlap) | double-counted cost |
+| An export is delivered twice | everything in it counted twice |
+| A bust arrives in a later export than its fill | cancelled trades stay in |
+| A bust after settlement reissues the settlement row (`revision`) | the cross-check fails on clean stores |
+| A missed export is backfilled after later ones | corrections applied before the thing they correct are lost |
+| The production store was written by 0.4 | three days of history wrong, or lost on upgrade |
+| Statements must chain day to day | a missing export goes unnoticed |
 
 ## Grader
 
-- **Truth.** It comes from the simulator's own cash ledger, written as trades
-  happen. The grader never parses the exported records, so it shares no code
-  path with any solution.
-- **Partial credit.** Scoring is per market and per day, so the score shows how
-  far a solution got. The reconcile term is a product of the pass rate on clean
-  exports and the catch rate on tampered ones. See `GAMING.md`.
-- **Determinism.** Fixed seeds, integer cents, no clock, no network. The full
-  run takes about three seconds.
+- **Truth.** It comes from the simulator's own record of every fill, bust and
+  settlement, replayed to each checkpoint's time. The grader never parses an
+  export, so it shares no code path with any solution.
+- **The legacy store.** For every seed the grader builds the store with the
+  real 0.4 code (`grader/legacy/`, identical to `starter/fillbook`, and a
+  self-test checks that). That's the same way production was left.
+- **The sequence.** The solution ingests the remaining exports with one
+  redelivered and two swapped. `report` is scored at every point where the
+  ingested exports form an unbroken run, starting with the untouched 0.4
+  store. That gives 56 checkpoints across six seeds.
+- **Reconcile.** It runs on six clean stores and twelve defective ones covering
+  six defect kinds. Its score is the clean pass rate times the catch rate.
+- **Determinism.** Fixed seeds, integer cents, no clock, no network. A full
+  run of one solution takes about 30 seconds.
 
 ## Calibration
 
@@ -72,40 +72,32 @@ A Polaris task should be solvable, should not be trivial, and should separate
 stronger attempts from weaker ones.
 
 - **Solvable.** `solutions/reference` scores 100.
-- **Plausible mistakes score where they should,** from 70.0 down to 0. See the
-  results table in `README.md`.
-- **Version 1 was too easy.** In the first version, every trap appeared in the
-  visible sample and the hidden exports held nothing new. Claude Sonnet and
-  Claude Opus both scored 100 in under three minutes. Their solutions are kept
-  in `attempts/v1-*`. A model could iterate against the cash statement until the
-  sample reconciled, without ever needing behavior it hadn't seen.
-- **Version 2,** the current one, adds three behaviors the field reference
-  documents but the sample never shows, and cuts the sentences in the reference
-  that explained each trap outright. That tests the skill the first version
-  missed: reading a spec and writing code that holds on data it hasn't seen.
-  `solutions/wrong_fits_the_sample` is exactly the version 1 solution shape,
-  and it scores 23.0.
-- **Version 2 is still too easy for frontier models.** Claude Sonnet and Claude
-  Opus both scored 100, each in about three minutes or less. Both read the field
-  reference closely enough to handle behavior they never saw, including the
-  market whose only fill was busted. The grader separates wrong solutions well,
-  but the task does not yet separate strong models. Solutions are in
-  `attempts/v2-*`.
+- **Plausible mistakes land across the range.** The in-order ledger, the
+  natural incremental design, scores 89.0. Starting the store over on upgrade
+  scores 34.7. See the table in `README.md`.
+- **It does not separate frontier models.** Six attempts by Claude Sonnet and
+  Claude Opus across three versions all scored 100.
+  - **Version 1** put every trap in the visible sample.
+  - **Version 2** added behavior the field reference documents but the sample
+    never shows. The models read the reference closely and handled it anyway.
+  - **Version 3** added state across runs, late corrections, redelivery,
+    backfill and a migration. Solve time rose from about 1.5 minutes to about
+    6, but both models still scored 100.
 
-## What would make it harder
+  Both version 3 attempts saw the same shortcut: 0.4 archived every raw
+  export, so recomputing everything from the archive makes ingest order
+  irrelevant and the migration nearly free. Taking away the archive would make the
+  migration impossible, which wouldn't be fair.
 
-The bugs here are each local to one function, and the whole repository is
-about 300 lines. Fixing it takes reading, not sustained work. The next version
-moves the difficulty to the places long-horizon work actually breaks:
+**What I take from it.** A well-specified data-correctness task of a few
+hundred lines doesn't separate current frontier models, however many traps it
+holds. Careful reading of a precise spec is now a strength of these models. The
+next things I would try are the ones this format can't hold:
+- **A much larger existing codebase**, where finding the right place to change
+  is the work.
+- **A spec with real gaps**, where the solver has to ask, or choose and say why.
+- **Wall-clock and resource limits** that rule out recomputing everything.
 
-- **State across runs.** Exports arrive daily into a persistent store, and
-  `report` must be right after each one.
-- **Late corrections.** Busts arrive days after the fill they cancel, and
-  settlement rows arrive after the export that held the fills.
-- **Idempotency.** One export is delivered twice, and another overlaps the one
-  before it.
-- **A migration.** The store already holds rows written by the buggy version,
-  and they have to be repaired, not just recomputed.
-
-The grader would replay a sequence of exports and score the report after every
-step. Whether that version separates models is a guess until it is run.
+Those are the conditions Polaris tasks are built around. This repository is
+the grader, the anti-gaming work and the calibration method, run honestly on
+a task that turned out easier than I designed it to be.

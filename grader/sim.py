@@ -1,14 +1,15 @@
 """Synthetic event-contract exchange.
 
-Simulates one account trading binary weather markets and writes the records the
-exchange would export for it: paginated REST fills, a WebSocket capture,
-settlement rows and an account statement.
+Simulates one account trading binary weather markets over a few weeks, then
+writes the daily exports the exchange delivers for it. Each export holds
+paginated REST fills, a WebSocket capture, the settlement rows issued that day
+and a cash statement.
 
-Ground truth comes from the simulator's own cash ledger, built while the trades
-happen. It never comes from parsing the emitted records, so the grader shares
-no logic with any solution.
+Ground truth comes from the simulator's own record of every fill, bust and
+settlement. It never comes from parsing the exports, so the grader shares no
+logic with any solution.
 
-All money is integer cents.
+All money is integer cents. All time windows are half-open: [start, end).
 """
 
 import datetime as dt
@@ -18,15 +19,50 @@ import random
 
 UTC = dt.timezone.utc
 CITIES = ["SFO", "NYC", "CHI", "MIA", "DEN", "SEA", "AUS", "BOS", "PHX", "ATL"]
-PAGE_SIZE = 50
+PAGE_SIZE = 12
 LEGACY_CUTOFF = dt.datetime(2026, 8, 20, tzinfo=UTC)  # REST pages before this are served as v1
-P_BUST = 0.03
+REST_BACK = dt.timedelta(hours=6)   # each export's REST window reaches back into the day before
+REST_LAG = dt.timedelta(hours=2)    # and stops short of the export time
+P_BUST = 0.04
+P_LATE_BUST = 0.4                   # share of busts that land hours or days later
 P_VOID = 0.07
+TICK = dt.timedelta(milliseconds=1)
 
 
 def fee_cents(count, price):
     """Exchange fee: ceil(0.07 * count * P * (1 - P)) dollars, in cents."""
     return (7 * count * price * (100 - price) + 9999) // 10000
+
+
+class State:
+    """A market's position as of some moment, replayed from its live fills."""
+
+    def __init__(self):
+        self.held = {"yes": 0, "no": 0}
+        self.acq = {"yes": 0, "no": 0}
+        self.cost = {"yes": 0, "no": 0}
+        self.fees = 0
+        self.cash = 0
+        self.live = 0
+
+    def apply(self, f):
+        side, count, price = f["side"], f["count"], f["price"]
+        self.held[side] += count
+        self.acq[side] += count
+        self.cost[side] += count * price
+        self.fees += f["fee"]
+        self.cash -= count * price + f["fee"]
+        self.live += 1
+        pairs = min(self.held["yes"], self.held["no"])
+        if pairs:
+            # One YES and one NO always pay $1 together, so the exchange nets
+            # the pair and credits cash at once.
+            self.held["yes"] -= pairs
+            self.held["no"] -= pairs
+            self.cash += 100 * pairs
+
+    def payout(self, value):
+        return self.held["yes"] * value + self.held["no"] * (100 - value)
 
 
 class Market:
@@ -36,14 +72,38 @@ class Market:
         self.result = result
         self.close = close
         self.settle = settle
-        self.settled = False
-        self.held = {"yes": 0, "no": 0}
-        self.acq = {"yes": 0, "no": 0}
-        self.cost = {"yes": 0, "no": 0}
-        self.fees = 0
-        self.cash = 0  # every cent this market moved, signed
-        self.revenue = 0
-        self.value = None  # YES payout per contract at settlement, cents
+        self.value = None  # what one YES pays at settlement, cents
+        self.fills = []
+
+    def state(self, t):
+        """Position as of t: fills before t, minus busts announced before t."""
+        st = State()
+        for f in self.fills:
+            if f["ts"] < t and not (f["busted"] and f["bust_ts"] < t):
+                st.apply(f)
+        return st
+
+    def cash(self, t):
+        st = self.state(t)
+        return st.cash + (st.payout(self.value) if self.settle < t else 0)
+
+    def revisions(self):
+        """Settlement rows the exchange issues: one at settlement, then one
+        more for every bust announced after the market settled."""
+        times = [self.settle] + sorted(f["bust_ts"] for f in self.fills
+                                       if f["busted"] and f["bust_ts"] >= self.settle)
+        out = []
+        for i, t in enumerate(times):
+            st = self.state(t + TICK)
+            out.append((t, {
+                "ticker": self.ticker, "revision": i + 1, "market_result": self.result,
+                "settled_time": iso(self.settle),
+                "yes_count": st.acq["yes"], "no_count": st.acq["no"],
+                "yes_total_cost": st.cost["yes"], "no_total_cost": st.cost["no"],
+                "fee_cost": st.fees, "settlement_value": self.value,
+                "revenue": st.payout(self.value),
+            }))
+        return out
 
 
 class Account:
@@ -57,36 +117,24 @@ class Account:
     def new_id(self, prefix):
         return "%s-%012x" % (prefix, self.rng.getrandbits(48))
 
-    def apply_fill(self, m, side, action, price, count, ts, order_id):
-        fee = fee_cents(count, price)
-        if self.rare and self.rng.random() < P_BUST:
-            # The exchange cancels the trade after the fact. It never happened.
-            self.fills.append({
-                "fill_id": self.new_id("f"), "order_id": order_id, "ticker": m.ticker,
-                "side": side, "action": action, "count": count, "price": price,
-                "fee": fee, "ts": ts, "busted": True,
-                "bust_ts": ts + dt.timedelta(seconds=self.rng.randint(30, 900)),
-            })
-            return
-        m.held[side] += count
-        m.acq[side] += count
-        m.cost[side] += count * price
-        m.fees += fee
-        m.cash -= count * price + fee
-        pairs = min(m.held["yes"], m.held["no"])
-        if pairs:
-            # A YES and a NO in one market always pay $1 together, so the
-            # exchange nets the pair and credits cash at once.
-            m.held["yes"] -= pairs
-            m.held["no"] -= pairs
-            m.cash += 100 * pairs
-        self.fills.append({
-            "fill_id": self.new_id("f"), "order_id": order_id, "ticker": m.ticker,
-            "side": side, "action": action, "count": count, "price": price,
-            "fee": fee, "ts": ts, "busted": False,
-        })
+    def apply_fill(self, m, side, action, price, count, ts, order_id, live):
+        rng = self.rng
+        busted = self.rare and rng.random() < P_BUST
+        bust_ts = None
+        if busted:
+            if rng.random() < P_LATE_BUST:
+                bust_ts = ts + dt.timedelta(hours=rng.uniform(2, 40))
+            else:
+                bust_ts = ts + dt.timedelta(seconds=rng.randint(30, 900))
+        f = {"fill_id": self.new_id("f"), "order_id": order_id, "ticker": m.ticker,
+             "side": side, "action": action, "count": count, "price": price,
+             "fee": fee_cents(count, price), "ts": ts, "busted": busted, "bust_ts": bust_ts}
+        m.fills.append(f)
+        self.fills.append(f)
+        if not busted:
+            live.apply(f)
 
-    def order(self, m, side, action, price, qty, ts):
+    def order(self, m, side, action, price, qty, ts, live):
         """One order ticket, filled in one to three pieces."""
         rng = self.rng
         oid = self.new_id("o")
@@ -100,10 +148,11 @@ class Account:
         else:
             parts = [(qty, 0)]
         for count, lag in parts:
-            self.apply_fill(m, side, action, price, count, ts + dt.timedelta(seconds=lag), oid)
+            self.apply_fill(m, side, action, price, count, ts + dt.timedelta(seconds=lag), oid, live)
 
     def trade(self, m, fair):
         rng = self.rng
+        live = State()  # what the trader believes it holds
         open_ = m.close - dt.timedelta(minutes=rng.randint(120, 600))
         span = int((m.close - open_).total_seconds())
         times = sorted(open_ + dt.timedelta(seconds=rng.randint(0, span - 5))
@@ -111,29 +160,27 @@ class Account:
         yes_px = max(4, min(96, round(fair * 100 + rng.gauss(0, 8))))
         for t in times:
             yes_px = max(2, min(98, yes_px + rng.randint(-6, 6)))
-            if m.held["yes"] == 0 and m.held["no"] == 0:
+            if live.held["yes"] == 0 and live.held["no"] == 0:
                 held = None
             else:
-                held = "yes" if m.held["yes"] else "no"
+                held = "yes" if live.held["yes"] else "no"
             if held is None or rng.random() < 0.45:
                 side = held or ("yes" if rng.random() < 0.5 else "no")
                 qty = rng.randint(1, 40)
                 if side == "yes":
-                    self.order(m, "yes", "buy", yes_px, qty, t)
+                    self.order(m, "yes", "buy", yes_px, qty, t, live)
                 else:
-                    # A NO position can be opened with a buy-NO ticket or a
-                    # sell-YES ticket. The exchange reports the second as
-                    # side=no, action=sell.
+                    # A NO position opens with a buy-NO ticket or a sell-YES
+                    # ticket. The exchange reports the second as side=no, action=sell.
                     action = "buy" if rng.random() < 0.5 else "sell"
-                    self.order(m, "no", action, 100 - yes_px, qty, t)
+                    self.order(m, "no", action, 100 - yes_px, qty, t, live)
             else:
-                q = m.held[held]
+                q = live.held[held]
                 k = q if rng.random() < 0.6 else rng.randint(1, q)
                 if held == "yes":
-                    # Sell-YES ticket: executes as a purchase of NO.
-                    self.order(m, "no", "sell", 100 - yes_px, k, t)
+                    self.order(m, "no", "sell", 100 - yes_px, k, t, live)  # sell-YES ticket
                 else:
-                    self.order(m, "yes", "sell", yes_px, k, t)
+                    self.order(m, "yes", "sell", yes_px, k, t, live)       # sell-NO ticket
 
     def run(self):
         rng = self.rng
@@ -156,46 +203,68 @@ class Account:
                 if self.rare and rng.random() < P_VOID:
                     m.result = "void"
                 self.trade(m, fair)
+                m.value = {"yes": 100, "no": 0}.get(m.result)
+                if m.value is None:
+                    m.value = rng.randint(5, 95)
                 self.markets.append(m)
         self.fills.sort(key=lambda f: f["ts"])
-        self.export_ts = max(m.close for m in self.markets) + dt.timedelta(minutes=90)
         for m in self.markets:
-            if m.settle <= self.export_ts:
-                m.settled = True
-                if m.result == "void":
-                    m.value = rng.randint(5, 95)
-                else:
-                    m.value = 100 if m.result == "yes" else 0
-                m.revenue = m.held["yes"] * m.value + m.held["no"] * (100 - m.value)
-                m.cash += m.revenue
+            m.fills.sort(key=lambda f: f["ts"])
+
+        # One export per UTC day, until every settlement and bust has been delivered.
+        last = max([m.settle for m in self.markets] +
+                   [f["bust_ts"] for f in self.fills if f["busted"]])
+        self.days = []
+        d = dt.datetime(first_day.year, first_day.month, first_day.day, tzinfo=UTC)
+        while d <= last:
+            self.days.append(d)
+            d += dt.timedelta(days=1)
         self.start_cash = rng.randint(50000, 250000)
-        self.net_deposits = rng.choice([0, 20000, 50000, -15000])
-        self.end_cash = self.start_cash + self.net_deposits + sum(m.cash for m in self.markets)
-        self.period = (first_day, first_day + dt.timedelta(days=n_days))
+        self.deposits = []
+        for day in self.days:
+            if rng.random() < 0.2:
+                self.deposits.append((day + dt.timedelta(hours=rng.randint(1, 11)),
+                                      rng.choice([10000, 20000, 50000, -15000])))
         return self
+
+    # ---------------------------------------------------------------- truth
+
+    def total_cash(self, t):
+        return (self.start_cash + sum(a for ts, a in self.deposits if ts < t)
+                + sum(m.cash(t) for m in self.markets))
+
+    def truth(self, t):
+        """What a correct `fillbook report --json` prints once every export up
+        to time t has been ingested."""
+        settled, open_, by_day = {}, {}, {}
+        for m in self.markets:
+            if m.settle < t:
+                settled[m.ticker] = m.cash(t)
+                k = m.event_day.isoformat()
+                by_day[k] = by_day.get(k, 0) + settled[m.ticker]
+            else:
+                st = m.state(t)
+                if st.live:
+                    open_[m.ticker] = st.cash
+        return {"markets": settled, "open": open_, "total_cents": sum(settled.values()),
+                "by_day": by_day}
 
 
 def simulate(seed, rare=True):
     return Account(seed, rare).run()
 
 
-def truth(acct):
-    """What a correct `fillbook report --json` prints for this account."""
-    settled = {m.ticker: m.cash for m in acct.markets if m.settled}
-    open_ = {m.ticker: m.cash for m in acct.markets if not m.settled}
-    by_day = {}
-    for m in acct.markets:
-        if m.settled:
-            k = m.event_day.isoformat()
-            by_day[k] = by_day.get(k, 0) + m.cash
-    return {"markets": settled, "open": open_, "total_cents": sum(settled.values()), "by_day": by_day}
-
+# -------------------------------------------------------------------- export
 
 def iso(ts):
     return ts.strftime("%Y-%m-%dT%H:%M:%S.") + "%03dZ" % (ts.microsecond // 1000)
 
 
-def rest_record(f):
+def ms(ts):
+    return int(ts.timestamp() * 1000)
+
+
+def rest_record(f, as_of):
     p = f["price"]
     return {
         "fill_id": f["fill_id"], "order_id": f["order_id"], "ticker": f["ticker"],
@@ -203,121 +272,123 @@ def rest_record(f):
         "yes_price": p if f["side"] == "yes" else 100 - p,
         "no_price": p if f["side"] == "no" else 100 - p,
         "fee": f["fee"], "created_time": iso(f["ts"]),
-        "status": "busted" if f["busted"] else "executed",
+        "status": "busted" if f["busted"] and f["bust_ts"] < as_of else "executed",
     }
 
 
-def ws_record(f):
-    return {"type": "fill", "msg": {
+def ws_msg(f):
+    return {
         "fill_id": f["fill_id"], "order_id": f["order_id"], "market_ticker": f["ticker"],
         "side": f["side"], "action": f["action"], "quantity": f["count"],
         "price": "%.2f" % (f["price"] / 100.0), "fee": "%.2f" % (f["fee"] / 100.0),
-        "ts": int(f["ts"].timestamp() * 1000),
-    }}
-
-
-def records(acct):
-    """The exchange export, as plain data: rest pages, ws lines, settlements, account."""
-    rng = random.Random(acct.seed * 7919 + 1)
-    fills = acct.fills
-    n = len(fills)
-    rest_cut = int(n * 0.93)   # REST lags the live feed
-    ws_from = int(n * 0.78)    # the WebSocket capture started late
-    rest = list(reversed(fills[:rest_cut]))  # newest first
-    pages = [rest[i:i + PAGE_SIZE] for i in range(0, len(rest), PAGE_SIZE)]
-    names = ["index"] + ["%08x" % rng.getrandbits(32) for _ in pages[1:]]
-    rest_pages = {}
-    for i, page in enumerate(pages):
-        cursor = names[i + 1] if i + 1 < len(pages) else None
-        if max(f["ts"] for f in page) < LEGACY_CUTOFF:
-            body = [dict(ws_record(f)["msg"], status="busted" if f["busted"] else "executed")
-                    for f in page]
-            rest_pages[names[i]] = {"api_version": 1, "fills": body, "cursor": cursor}
-        else:
-            rest_pages[names[i]] = {"api_version": 2, "fills": [rest_record(f) for f in page],
-                                    "cursor": cursor}
-    events = []
-    for f in fills[ws_from:]:
-        if rng.random() < 0.15:
-            events.append((f["ts"] - dt.timedelta(milliseconds=500), {"type": "heartbeat",
-                           "ts": int(f["ts"].timestamp() * 1000) - 500}))
-        events.append((f["ts"], ws_record(f)))
-        if f["busted"]:
-            events.append((f["bust_ts"], {"type": "fill_bust", "msg": {
-                "fill_id": f["fill_id"], "ts": int(f["bust_ts"].timestamp() * 1000)}}))
-    events.sort(key=lambda e: e[0])
-    ws = [e[1] for e in events]
-    settlements = []
-    for m in sorted(acct.markets, key=lambda m: m.settle):
-        if m.settled:
-            settlements.append({
-                "ticker": m.ticker, "market_result": m.result, "settled_time": iso(m.settle),
-                "yes_count": m.acq["yes"], "no_count": m.acq["no"],
-                "yes_total_cost": m.cost["yes"], "no_total_cost": m.cost["no"],
-                "fee_cost": m.fees, "settlement_value": m.value, "revenue": m.revenue,
-            })
-    account = {
-        "period_start": acct.period[0].isoformat(), "period_end": acct.period[1].isoformat(),
-        "exported_at": iso(acct.export_ts),
-        "starting_cash_cents": acct.start_cash, "ending_cash_cents": acct.end_cash,
-        "net_deposits_cents": acct.net_deposits,
+        "ts": ms(f["ts"]),
     }
-    return {"rest": rest_pages, "ws": ws, "settlements": settlements, "account": account}
 
 
-def coverage(acct, recs):
-    """Confirm the dataset exercises every trap the task is about."""
-    ws_ids = {line["msg"]["fill_id"] for line in recs["ws"] if line["type"] == "fill"}
-    rest_ids = {f["fill_id"] for p in recs["rest"].values() for f in p["fills"]}
+def exports(acct):
+    """The exchange's daily exports, oldest first, as plain data."""
+    rng = random.Random(acct.seed * 7919 + 1)
+    revisions = sorted((r for m in acct.markets for r in m.revisions()), key=lambda r: r[0])
+    out = []
+    for start in acct.days:
+        end = start + dt.timedelta(days=1)
+
+        # REST: [start - 6h, end - 2h), newest first, as the endpoint saw it at `end`
+        rest = [f for f in reversed(acct.fills) if start - REST_BACK <= f["ts"] < end - REST_LAG]
+        pages = [rest[i:i + PAGE_SIZE] for i in range(0, len(rest), PAGE_SIZE)] or [[]]
+        names = ["index"] + ["%08x" % rng.getrandbits(32) for _ in pages[1:]]
+        rest_pages = {}
+        for i, page in enumerate(pages):
+            cursor = names[i + 1] if i + 1 < len(pages) else None
+            if page and max(f["ts"] for f in page) < LEGACY_CUTOFF:
+                body = [dict(ws_msg(f), status=rest_record(f, end)["status"]) for f in page]
+                rest_pages[names[i]] = {"api_version": 1, "fills": body, "cursor": cursor}
+            else:
+                rest_pages[names[i]] = {"api_version": 2, "fills": [rest_record(f, end) for f in page],
+                                        "cursor": cursor}
+
+        # WebSocket: the whole day, minus reconnect gaps early in the day (REST covers those)
+        gaps = []
+        for _ in range(rng.randint(0, 2)):
+            g0 = start + dt.timedelta(minutes=rng.randint(0, 17 * 60 - 90))
+            gaps.append((g0, g0 + dt.timedelta(minutes=rng.randint(20, 90))))
+        events = []
+        for f in acct.fills:
+            if start <= f["ts"] < end and not any(a <= f["ts"] < b for a, b in gaps):
+                events.append((f["ts"], {"type": "fill", "msg": ws_msg(f)}))
+                if rng.random() < 0.15:
+                    events.append((f["ts"] - TICK, {"type": "heartbeat", "ts": ms(f["ts"]) - 1}))
+            if f["busted"] and start <= f["bust_ts"] < end:
+                events.append((f["bust_ts"], {"type": "fill_bust", "msg": {
+                    "fill_id": f["fill_id"], "ts": ms(f["bust_ts"])}}))
+        events.sort(key=lambda e: e[0])
+
+        settlements = [row for t, row in revisions if start <= t < end]
+        account = {
+            "export_date": start.date().isoformat(), "exported_at": iso(end),
+            "starting_cash_cents": acct.total_cash(start), "ending_cash_cents": acct.total_cash(end),
+            "net_deposits_cents": sum(a for ts, a in acct.deposits if start <= ts < end),
+        }
+        out.append({"id": start.date().isoformat(), "end": end, "rest": rest_pages,
+                    "ws": [e[1] for e in events], "settlements": settlements, "account": account})
+    return out
+
+
+def coverage(acct, exps):
+    late = [f for f in acct.fills if f["busted"] and (f["bust_ts"] - f["ts"]) > dt.timedelta(hours=2)]
+    reissued = [m for m in acct.markets if len(m.revisions()) > 1]
+    rest_ids = {f["fill_id"] for e in exps for p in e["rest"].values() for f in p["fills"]}
+    ws_ids = {l["msg"]["fill_id"] for e in exps for l in e["ws"] if l["type"] == "fill"}
     seen, identical = set(), 0
     for f in acct.fills:
-        if f["busted"]:
-            continue
         key = (f["ticker"], f["side"], f["action"], f["count"], f["price"], f["ts"])
         identical += key in seen
         seen.add(key)
-    netted = [m for m in acct.markets if m.settled and min(m.acq.values()) > 0]
     return {
-        "rest_pages": len(recs["rest"]),
+        "exports": len(exps),
+        "max_pages": max(len(e["rest"]) for e in exps),
+        "legacy_pages": sum(1 for e in exps for p in e["rest"].values() if p["api_version"] == 1),
+        "rest_only_fills": len(rest_ids - ws_ids),
         "ws_only_fills": len(ws_ids - rest_ids),
-        "overlap_fills": len(ws_ids & rest_ids),
-        "short_entries": sum(1 for f in acct.fills if f["side"] == "no" and f["action"] == "sell"
-                             and not f["busted"]),
-        "identical_partial_fills": identical,
-        "netted_markets": len(netted),
-        "fully_closed_early": sum(1 for m in netted if m.revenue == 0),
-        "cross_midnight_settles": sum(1 for m in acct.markets if m.settled and m.settle.date() != m.event_day),
-        "open_markets": sum(1 for m in acct.markets if not m.settled),
+        "in_two_exports": sum(1 for f in acct.fills if sum(
+            1 for e in exps for p in e["rest"].values() for r in p["fills"] if r["fill_id"] == f["fill_id"]) > 1),
         "busted_fills": sum(1 for f in acct.fills if f["busted"]),
-        "void_markets": sum(1 for m in acct.markets if m.settled and m.result == "void"),
-        "legacy_pages": sum(1 for p in recs["rest"].values() if p["api_version"] == 1),
+        "late_busts_next_export": sum(1 for f in late if f["bust_ts"].date() != f["ts"].date()),
+        "reissued_settlements": len(reissued),
+        "void_markets": sum(1 for m in acct.markets if m.result == "void"),
+        "identical_partial_fills": identical,
+        "short_entries": sum(1 for f in acct.fills if f["side"] == "no" and f["action"] == "sell"),
+        "deposit_days": len(acct.deposits),
     }
 
 
-def write(recs, out_dir):
+def write_export(exp, out_dir):
     os.makedirs(os.path.join(out_dir, "fills"), exist_ok=True)
-    for name, page in recs["rest"].items():
+    for name, page in exp["rest"].items():
         with open(os.path.join(out_dir, "fills", name + ".json"), "w") as fh:
             json.dump(page, fh, indent=1)
             fh.write("\n")
     with open(os.path.join(out_dir, "ws_fills.jsonl"), "w") as fh:
-        for line in recs["ws"]:
+        for line in exp["ws"]:
             fh.write(json.dumps(line) + "\n")
     with open(os.path.join(out_dir, "settlements.json"), "w") as fh:
-        json.dump({"settlements": recs["settlements"]}, fh, indent=1)
+        json.dump({"settlements": exp["settlements"]}, fh, indent=1)
         fh.write("\n")
     with open(os.path.join(out_dir, "account.json"), "w") as fh:
-        json.dump(recs["account"], fh, indent=1)
+        json.dump(exp["account"], fh, indent=1)
         fh.write("\n")
+
+
+def write_all(exps, root):
+    for e in exps:
+        write_export(e, os.path.join(root, e["id"]))
 
 
 if __name__ == "__main__":
     import sys
     args = [x for x in sys.argv[1:] if not x.startswith("--")]
-    seed = int(args[0])
-    # --sample: the visible export, which never shows the rare behaviors
-    a = simulate(seed, rare="--sample" not in sys.argv)
-    r = records(a)
-    print(json.dumps(coverage(a, r), indent=1))
+    a = simulate(int(args[0]))
+    ex = exports(a)
+    print(json.dumps(coverage(a, ex), indent=1))
     if len(args) > 1:
-        write(r, args[1])
+        write_all(ex, args[1])

@@ -1,0 +1,56 @@
+{
+ "settlements": [
+  {
+   "ticker": "HIGHT-DEN-26SEP02-T96",
+   "revision": 1,
+   "market_result": "no",
+   "settled_time": "2026-09-03T01:06:00.000Z",
+   "yes_count": 50,
+   "no_count": 54,
+   "yes_total_cost": 829,
+   "no_total_cost": 4506,
+   "fee_cost": 103,
+   "settlement_value": 0,
+   "revenue": 400
+  },
+  {
+   "ticker": "HIGHT-ATL-26SEP02-T67",
+   "revision": 1,
+   "market_result": "void",
+   "settled_time": "2026-09-03T01:33:00.000Z",
+   "yes_count": 92,
+   "no_count": 0,
+   "yes_total_cost": 4516,
+   "no_total_cost": 0,
+   "fee_cost": 163,
+   "settlement_value": 90,
+   "revenue": 8280
+  },
+  {
+   "ticker": "HIGHT-SFO-26SEP02-T67",
+   "revision": 1,
+   "market_result": "yes",
+   "settled_time": "2026-09-03T06:30:00.000Z",
+   "yes_count": 32,
+   "no_count": 0,
+   "yes_total_cost": 2488,
+   "no_total_cost": 0,
+   "fee_cost": 41,
+   "settlement_value": 100,
+   "revenue": 3200
+  },
+  {
+   "ticker": "HIGHT-DEN-26SEP02-T96",
+   "revision": 2,
+   "market_result": "no",
+   "settled_time": "2026-09-03T01:06:00.000Z",
+   "yes_count": 43,
+   "no_count": 54,
+   "yes_total_cost": 731,
+   "no_total_cost": 4506,
+   "fee_cost": 97,
+   "settlement_value": 0,
+   "revenue": 1100
+  }
+ ]
+}

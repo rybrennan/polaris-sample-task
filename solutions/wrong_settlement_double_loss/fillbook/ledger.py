@@ -8,7 +8,7 @@ At settlement a YES pays `settlement_value` and a NO pays the rest of $1.00.
 from collections import defaultdict
 from typing import Dict, Iterable
 
-from fillbook.loader import Fill, Settlement
+from fillbook.records import Fill, Settlement
 
 
 class Position:
@@ -34,7 +34,6 @@ class Position:
         return 100 * self.netted - self.cost["yes"] - self.cost["no"] - self.fees
 
     def payout(self, yes_value: int) -> int:
-        """Paid at settlement when one YES is worth `yes_value` cents (NO: the rest)."""
         return self.held["yes"] * yes_value + self.held["no"] * (100 - yes_value)
 
     def realized(self, s: Settlement) -> int:

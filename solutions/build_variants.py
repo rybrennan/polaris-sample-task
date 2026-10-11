@@ -11,6 +11,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 STARTER = os.path.join(HERE, "..", "starter", "fillbook")
@@ -35,19 +36,91 @@ def patch(pkg, filename, old, new):
         fh.write(text.replace(old, new, 1))
 
 
-RECONCILE_TOTAL_ONLY = '''    cp = sub.add_parser("reconcile")
-    cp.add_argument("--data", required=True)
-    args = ap.parse_args(argv)
-    if args.cmd == "reconcile":
-        import os
-        rep = build_report(args.data)
-        with open(os.path.join(args.data, "account.json")) as fh:
-            a = json.load(fh)
-        moved = a["ending_cash_cents"] - a["starting_cash_cents"] - a["net_deposits_cents"]
-        mine = rep["total_cents"] + sum(rep["open"].values())
-        print("records %d, statement %d" % (mine, moved))
-        return 0 if abs(mine - moved) <= 1 else 1
-'''
+def in_order_ledger():
+    """Processes exports in the order they were ingested and applies each
+    correction to whatever it has seen so far. Right when exports arrive in
+    order; wrong after a backfill, when a bust or a reissued settlement row
+    arrives before the export it corrects."""
+    pkg = clone(REFERENCE, "wrong_in_order_ledger")
+    patch(pkg, "store.py", '''    return [exports[k] for k in sorted(exports)]''',
+          '''    return list(exports.values())  # in ingest order''')
+    patch(pkg, "book.py", '''        for fid in self.busted:
+            self.fills.pop(fid, None)
+''', "")
+    patch(pkg, "book.py", '''                if r.get("status", "executed") == "busted":
+                    self.busted.add(f.fill_id)
+                self._add_fill(f)''', '''                if r.get("status", "executed") == "busted":
+                    self.fills.pop(f.fill_id, None)
+                    self.busted.add(f.fill_id)
+                elif f.fill_id not in self.busted:
+                    self._add_fill(f)''')
+    patch(pkg, "book.py", '''            if msg.get("type") == "fill":
+                self._add_fill(from_v1(msg["msg"]))
+            elif msg.get("type") == "fill_bust":
+                self.busted.add(msg["msg"]["fill_id"])''', '''            if msg.get("type") == "fill":
+                if msg["msg"]["fill_id"] not in self.busted:
+                    self._add_fill(from_v1(msg["msg"]))
+            elif msg.get("type") == "fill_bust":
+                self.fills.pop(msg["msg"]["fill_id"], None)''')
+    patch(pkg, "book.py", '''            if prev is None or s.revision > prev.revision:
+                self.settlements[s.ticker] = s''', '''            self.settlements[s.ticker] = s  # newest ingested wins''')
+
+
+def fresh_start_on_upgrade():
+    """Treats the 0.4 store as unusable and starts it over, losing every
+    export 0.4 ingested."""
+    pkg = clone(REFERENCE, "wrong_fresh_start_on_upgrade")
+    patch(pkg, "store.py", '''    elif version == 1:
+        migrate_v1(conn)''', '''    elif version == 1:
+        # 0.4 data is wrong anyway: start the store over.
+        with conn:
+            for table in ("raw_records", "fills", "settlements", "statements"):
+                conn.execute("DROP TABLE IF EXISTS %s" % table)
+            conn.executescript("""
+                CREATE TABLE raw_records (export_id TEXT, kind TEXT, name TEXT, payload TEXT);
+                CREATE TABLE exports (export_id TEXT PRIMARY KEY, digest TEXT);
+            """)
+            conn.execute("UPDATE meta SET value = ? WHERE key = 'schema_version'",
+                         (str(SCHEMA_VERSION),))''')
+
+
+def first_settlement_row():
+    """Keeps the first settlement row it sees for a market and ignores reissues."""
+    pkg = clone(REFERENCE, "wrong_first_settlement_row")
+    patch(pkg, "book.py", '''            if prev is None or s.revision > prev.revision:''',
+          '''            if prev is None:''')
+
+
+def dedup_by_value():
+    """Drops 'duplicate' fills by their contents instead of by fill_id."""
+    pkg = clone(REFERENCE, "wrong_dedup_by_value")
+    patch(pkg, "book.py", '''        prev = self.fills.get(f.fill_id)
+        if prev is None:
+            self.fills[f.fill_id] = f''', '''        key = (f.ticker, f.side, f.action, f.count, f.price, f.ts.replace(microsecond=0))
+        if not hasattr(self, "_seen"):
+            self._seen = {}
+        if key in self._seen and self._seen[key] != f.fill_id:
+            return
+        self._seen[key] = f.fill_id
+        prev = self.fills.get(f.fill_id)
+        if prev is None:
+            self.fills[f.fill_id] = f''')
+
+
+def settlement_double_loss():
+    """Correct report, but the cash check forgets pairs netted before settlement."""
+    pkg = clone(REFERENCE, "wrong_settlement_double_loss")
+    patch(pkg, "ledger.py", '''    netted = min(s.yes_count, s.no_count)
+    return s.revenue + 100 * netted - s.yes_total_cost - s.no_total_cost - s.fee_cost''',
+          '''    return s.revenue - s.yes_total_cost - s.no_total_cost - s.fee_cost''')
+
+
+def no_archived_pages():
+    """Everything right except the archived v1 REST pages, which the visible
+    exports never contain."""
+    pkg = clone(REFERENCE, "wrong_no_archived_pages")
+    patch(pkg, "book.py", '''                f = from_v1(r) if version == 1 else from_rest(r)''',
+          '''                f = from_rest(r)''')
 
 
 def symptom_only():
@@ -72,84 +145,64 @@ def symptom_only():
     patch(pkg, "loader.py", 'price=float(rec.get("yes_price", rec.get("price"))),',
           'price=float(rec["no_price"] if rec["side"] == "no" and "no_price" in rec\n'
           '                    else rec.get("yes_price", rec.get("price"))),')
-    patch(pkg, "cli.py", "    args = ap.parse_args(argv)\n", RECONCILE_TOTAL_ONLY)
+    patch(pkg, "cli.py", '''    args = ap.parse_args(argv)
+
+    conn = connect(args.store)''', '''    cp = sub.add_parser("reconcile")
+    cp.add_argument("--store", required=True)
+    args = ap.parse_args(argv)
+
+    conn = connect(args.store)
+    if args.cmd == "reconcile":
+        rep = build_report(conn)
+        rows = conn.execute("SELECT starting_cash, ending_cash, net_deposits FROM statements "
+                            "ORDER BY export_id").fetchall()
+        moved = rows[-1][1] - rows[0][0] - sum(r[2] for r in rows)
+        mine = rep["total_cents"] + sum(rep["open"].values())
+        print("records %d, statements %d" % (mine, moved))
+        return 0 if abs(mine - moved) <= 1 else 1''')
 
 
-def plug_to_balance():
-    """Makes the total agree with the statement by adding an adjustment line."""
-    pkg = clone(STARTER, "wrong_plug_to_balance")
+def plug_to_statements():
+    """Makes the total agree with the statements by adding an adjustment line."""
+    pkg = clone(STARTER, "wrong_plug_to_statements")
     patch(pkg, "report.py", '''    return {
-        "markets": markets,''', '''    import json, os
-    acct = os.path.join(data_dir, "account.json")
-    if os.path.exists(acct):
-        with open(acct) as fh:
-            a = json.load(fh)
-        moved = a["ending_cash_cents"] - a["starting_cash_cents"] - a["net_deposits_cents"]
+        "markets": markets,''', '''    rows = conn.execute("SELECT starting_cash, ending_cash, net_deposits FROM statements "
+                        "ORDER BY export_id").fetchall()
+    if rows:
+        moved = rows[-1][1] - rows[0][0] - sum(r[2] for r in rows)
         gap = moved - sum(markets.values()) - sum(open_.values())
         if gap:
-            markets["ADJUSTMENT"] = gap  # reconcile to the statement
+            markets["ADJUSTMENT"] = gap  # reconcile to the statements
     return {
         "markets": markets,''')
-    patch(pkg, "cli.py", "    args = ap.parse_args(argv)\n", '''    cp = sub.add_parser("reconcile")
-    cp.add_argument("--data", required=True)
+    patch(pkg, "cli.py", '''    args = ap.parse_args(argv)
+
+    conn = connect(args.store)''', '''    cp = sub.add_parser("reconcile")
+    cp.add_argument("--store", required=True)
     args = ap.parse_args(argv)
     if args.cmd == "reconcile":
-        print("ok: report is adjusted to the statement")
+        print("ok: report is adjusted to the statements")
         return 0
-''')
 
-
-def dedup_by_value():
-    """Drops 'duplicate' fills by their contents instead of by fill_id."""
-    pkg = clone(REFERENCE, "wrong_dedup_by_value")
-    patch(pkg, "loader.py", '''    by_id: Dict[str, Fill] = {}
-    for f in rest + ws:
-        prev = by_id.get(f.fill_id)
-        if prev is None:
-            by_id[f.fill_id] = f
-        elif prev._replace(ts=f.ts) != f or abs((prev.ts - f.ts).total_seconds()) >= 1:
-            raise ExportError("fill %s differs between sources: %r vs %r" % (f.fill_id, prev, f))
-''', '''    by_id: Dict[str, Fill] = {}
-    seen = set()
-    for f in rest + ws:
-        key = (f.ticker, f.side, f.action, f.count, f.price, f.ts.replace(microsecond=0))
-        if key not in seen:
-            seen.add(key)
-            by_id[f.fill_id] = f
-''')
-
-
-def settlement_double_loss():
-    """Correct report, but the cash check forgets pairs netted before settlement."""
-    pkg = clone(REFERENCE, "wrong_settlement_double_loss")
-    patch(pkg, "ledger.py", '''    netted = min(s.yes_count, s.no_count)
-    return s.revenue + 100 * netted - s.yes_total_cost - s.no_total_cost - s.fee_cost''',
-          '''    return s.revenue - s.yes_total_cost - s.no_total_cost - s.fee_cost''')
-
-
-def fits_the_sample():
-    """Every trap in the sample fixed; the documented behaviors the sample never
-    shows (busted fills, voided markets, archived v1 pages) left out. This is
-    what a solver gets by iterating until the sample reconciles."""
-    pkg = clone(REFERENCE, "wrong_fits_the_sample")
-    patch(pkg, "loader.py", '''        for r in page["fills"]:
-            f = from_ws(r) if version == 1 else from_rest(r)
-            if r.get("status", "executed") == "busted":
-                busted.add(f.fill_id)
-            out.append(f)''', '''        out.extend(from_rest(r) for r in page["fills"])''')
-    patch(pkg, "loader.py", '''            elif msg.get("type") == "fill_bust":
-                busted.add(msg["msg"]["fill_id"])
-''', "")
-    patch(pkg, "ledger.py", '''        return self.held["yes"] * yes_value + self.held["no"] * (100 - yes_value)''',
-          '''        return 100 * self.held["yes" if yes_value == 100 else "no"]''')
+    conn = connect(args.store)''')
 
 
 def gaming_hardcode_sample():
-    """Prints the sample's answers and passes reconcile only on the sample."""
-    sample = os.path.join(HERE, "..", "starter", "data", "sample")
-    out = subprocess.run([sys.executable, "-m", "fillbook", "report", "--data", sample, "--json"],
-                         cwd=os.path.join(HERE, "reference"), capture_output=True, text=True,
-                         check=True).stdout
+    """Prints the answer for the visible store after all sample exports, and
+    passes reconcile everywhere."""
+    sample = os.path.join(HERE, "..", "starter", "data")
+    work = tempfile.mkdtemp()
+    try:
+        store = os.path.join(work, "store.db")
+        shutil.copy(os.path.join(sample, "store.db"), store)
+        ref = os.path.join(HERE, "reference")
+        for d in sorted(os.listdir(os.path.join(sample, "exports")))[3:]:
+            subprocess.run([sys.executable, "-m", "fillbook", "ingest", "--store", store, "--export",
+                            os.path.join(sample, "exports", d)], cwd=ref, check=True, capture_output=True)
+        out = subprocess.run([sys.executable, "-m", "fillbook", "report", "--store", store, "--json"],
+                             cwd=ref, capture_output=True, text=True, check=True).stdout
+    finally:
+        shutil.rmtree(work)
     dst = os.path.join(HERE, "gaming_hardcode_sample", "fillbook")
     if os.path.isdir(os.path.dirname(dst)):
         shutil.rmtree(os.path.dirname(dst))
@@ -159,7 +212,7 @@ def gaming_hardcode_sample():
         fh.write('''import json
 import sys
 
-# Answers copied from running a correct tool on data/sample.
+# Answer copied from running a correct tool over the visible sample exports.
 ANSWER = %s
 
 
@@ -167,9 +220,8 @@ def main(argv):
     if argv[:1] == ["report"]:
         print(json.dumps(ANSWER))
         return 0
-    if argv[:1] == ["reconcile"]:
-        data = argv[argv.index("--data") + 1]
-        return 0 if data.rstrip("/").endswith("sample") else 1
+    if argv[:1] in (["ingest"], ["reconcile"]):
+        return 0
     return 2
 
 
@@ -178,7 +230,8 @@ raise SystemExit(main(sys.argv[1:]))
 
 
 if __name__ == "__main__":
-    for build in (symptom_only, plug_to_balance, dedup_by_value, settlement_double_loss,
-                  fits_the_sample, gaming_hardcode_sample):
+    for build in (in_order_ledger, fresh_start_on_upgrade, first_settlement_row, dedup_by_value,
+                  settlement_double_loss, no_archived_pages, symptom_only, plug_to_statements,
+                  gaming_hardcode_sample):
         build()
         print("built", build.__name__)

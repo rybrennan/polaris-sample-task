@@ -3,8 +3,8 @@
 import datetime as dt
 import re
 
+from fillbook.book import Book
 from fillbook.ledger import Position, build_positions
-from fillbook.loader import load_fills, load_settlements
 
 EVENT_DATE = re.compile(r"-(\d{2})([A-Z]{3})(\d{2})-")
 
@@ -16,14 +16,13 @@ def event_date(ticker: str) -> str:
     return dt.datetime.strptime("".join(m.groups()), "%y%b%d").date().isoformat()
 
 
-def build_report(data_dir: str) -> dict:
-    book = build_positions(load_fills(data_dir))
-    settled = {s.ticker: s for s in load_settlements(data_dir)}
+def build_report(book: Book) -> dict:
+    positions = build_positions(book.live_fills())
     markets, open_, by_day = {}, {}, {}
     # Every market with a settlement row is settled, even if all its fills were busted.
-    for ticker in sorted(set(book) | set(settled)):
-        pos = book.get(ticker, Position())
-        s = settled.get(ticker)
+    for ticker in sorted(set(positions) | set(book.settlements)):
+        pos = positions.get(ticker, Position())
+        s = book.settlements.get(ticker)
         if s is None:
             open_[ticker] = pos.cash_flow()
             continue

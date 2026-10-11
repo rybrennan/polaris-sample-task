@@ -1,15 +1,24 @@
 # Exchange account export: field reference
 
-This is the part of the exchange's API documentation that covers the files in an
-account export. An export directory holds:
+This is the part of the exchange's API documentation that covers the daily
+account export. The exchange delivers one export per UTC day, in a directory
+named for the date (`2026-09-04/`). An export directory holds:
 
 ```
 fills/index.json      first page of REST fills, newest first
 fills/<cursor>.json   later pages
 ws_fills.jsonl        WebSocket capture of the live fill channel
-settlements.json      one row per settled market
-account.json          cash statement for the export period
+settlements.json      settlement rows issued that day
+account.json          cash statement for that day
 ```
+
+Each export describes the account as the exchange saw it at the end of that day.
+The REST fills reach back six hours into the previous day and stop two hours
+before the export time, so a fill can appear in two exports. The WebSocket
+capture covers the export's own day, except when the connection dropped.
+
+Delivery is at-least-once. An export can be delivered again, and a missed export
+can be backfilled after later ones.
 
 ## Markets
 
@@ -108,6 +117,7 @@ v1 wire format:
 | field | type | meaning |
 |---|---|---|
 | `ticker` | string | market |
+| `revision` | int | 1 for the first row; higher numbers supersede lower ones |
 | `market_result` | `"yes"` \| `"no"` \| `"void"` | resolution |
 | `settled_time` | ISO 8601, UTC | when the market settled |
 | `yes_count`, `no_count` | int | contracts of each side the account acquired over the market's life |
@@ -116,13 +126,18 @@ v1 wire format:
 | `settlement_value` | int, cents | what one YES contract pays at settlement: 100 if `yes`, 0 if `no`, set by the exchange if `void`. One NO contract pays `100 - settlement_value`. |
 | `revenue` | int, cents | paid to the account at settlement |
 
+When a fill in a settled market is busted, the exchange issues a new settlement
+row for that market with the next `revision`, in the export for the day of the
+bust.
+
 ## Account statement (`account.json`)
 
 | field | meaning |
 |---|---|
-| `starting_cash_cents`, `ending_cash_cents` | cash balance at the start and end of the period |
-| `net_deposits_cents` | deposits minus withdrawals in the period |
-| `exported_at` | export time; markets not settled by then have no settlement row |
+| `export_date` | the UTC day this export covers |
+| `starting_cash_cents`, `ending_cash_cents` | cash balance at the start and end of that day |
+| `net_deposits_cents` | deposits minus withdrawals that day |
+| `exported_at` | export time, the end of that day |
 
-All cash movement in the period other than deposits comes from fills (cost and
-fees), pair netting, and settlement revenue.
+All cash movement other than deposits comes from fills (cost and fees), pair
+netting, settlement revenue, and the reversal of busted fills.

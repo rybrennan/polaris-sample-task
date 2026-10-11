@@ -1,3 +1,3 @@
-"""fillbook: turn exchange account exports into a P&L report."""
+"""fillbook: keep a ledger of exchange account exports and report P&L."""
 
-__version__ = "0.3.1"
+__version__ = "0.5.0"

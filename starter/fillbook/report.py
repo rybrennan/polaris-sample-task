@@ -1,12 +1,28 @@
-"""Build the P&L report."""
+"""Build the P&L report from the store."""
+
+import datetime as dt
+import sqlite3
 
 from fillbook.ledger import build_positions
-from fillbook.loader import load_fills, load_settlements
+from fillbook.loader import Fill, Settlement
 
 
-def build_report(data_dir: str) -> dict:
-    book = build_positions(load_fills(data_dir))
-    settled = {s.ticker: s for s in load_settlements(data_dir)}
+def stored_fills(conn: sqlite3.Connection):
+    for row in conn.execute("SELECT fill_id, ticker, side, action, count, price, fee, ts FROM fills"):
+        yield Fill(*row[:7], dt.datetime.fromisoformat(row[7]))
+
+
+def stored_settlements(conn: sqlite3.Connection):
+    out = {}
+    for ticker, result, settled, revenue in conn.execute(
+            "SELECT ticker, result, settled_time, revenue FROM settlements ORDER BY rowid"):
+        out.setdefault(ticker, Settlement(ticker, result, dt.datetime.fromisoformat(settled), revenue))
+    return out
+
+
+def build_report(conn: sqlite3.Connection) -> dict:
+    book = build_positions(stored_fills(conn))
+    settled = stored_settlements(conn)
     markets, open_, by_day = {}, {}, {}
     for ticker, pos in sorted(book.items()):
         s = settled.get(ticker)

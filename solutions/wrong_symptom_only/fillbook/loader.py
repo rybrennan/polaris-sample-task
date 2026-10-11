@@ -1,4 +1,4 @@
-"""Read an account export directory into Fill and Settlement objects."""
+"""Read one daily export directory into Fill and Settlement objects."""
 
 import datetime as dt
 import json
@@ -82,3 +82,8 @@ def load_settlements(data_dir: str) -> List[Settlement]:
         rows = json.load(fh)["settlements"]
     return [Settlement(r["ticker"], r["market_result"], parse_ts(r["settled_time"]), r["revenue"])
             for r in rows]
+
+
+def load_account(data_dir: str) -> dict:
+    with open(os.path.join(data_dir, "account.json")) as fh:
+        return json.load(fh)

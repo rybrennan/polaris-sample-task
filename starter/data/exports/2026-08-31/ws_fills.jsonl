@@ -1,0 +1,31 @@
+{"type": "fill", "msg": {"fill_id": "f-ae9df92d6223", "order_id": "o-ce7760bec808", "market_ticker": "HIGHT-MIA-26AUG31-T78", "side": "no", "action": "sell", "quantity": 10, "price": "0.63", "fee": "0.17", "ts": 1788184609000}}
+{"type": "fill", "msg": {"fill_id": "f-5f1c4c7d07d0", "order_id": "o-ce7760bec808", "market_ticker": "HIGHT-MIA-26AUG31-T78", "side": "no", "action": "sell", "quantity": 6, "price": "0.63", "fee": "0.10", "ts": 1788184610000}}
+{"type": "fill", "msg": {"fill_id": "f-8d7bd9b32503", "order_id": "o-227e37eb9f4b", "market_ticker": "HIGHT-SEA-26AUG31-T91", "side": "yes", "action": "buy", "quantity": 11, "price": "0.46", "fee": "0.20", "ts": 1788185681000}}
+{"type": "fill", "msg": {"fill_id": "f-15bd2c924887", "order_id": "o-227e37eb9f4b", "market_ticker": "HIGHT-SEA-26AUG31-T91", "side": "yes", "action": "buy", "quantity": 2, "price": "0.46", "fee": "0.04", "ts": 1788185683000}}
+{"type": "fill", "msg": {"fill_id": "f-81c256450aa1", "order_id": "o-5c3b2bc52b08", "market_ticker": "HIGHT-SEA-26AUG31-T91", "side": "yes", "action": "buy", "quantity": 24, "price": "0.43", "fee": "0.42", "ts": 1788185813000}}
+{"type": "fill", "msg": {"fill_id": "f-f07d4804c1e5", "order_id": "o-ebbd4e5a9f36", "market_ticker": "HIGHT-MIA-26AUG31-T78", "side": "yes", "action": "sell", "quantity": 16, "price": "0.40", "fee": "0.27", "ts": 1788186963000}}
+{"type": "fill", "msg": {"fill_id": "f-9486ab3c1746", "order_id": "o-51adee798e32", "market_ticker": "HIGHT-SEA-26AUG31-T91", "side": "yes", "action": "buy", "quantity": 8, "price": "0.43", "fee": "0.14", "ts": 1788189945000}}
+{"type": "heartbeat", "ts": 1788189945999}
+{"type": "fill", "msg": {"fill_id": "f-ad4adccc451d", "order_id": "o-51adee798e32", "market_ticker": "HIGHT-SEA-26AUG31-T91", "side": "yes", "action": "buy", "quantity": 9, "price": "0.43", "fee": "0.16", "ts": 1788189946000}}
+{"type": "fill", "msg": {"fill_id": "f-42d1436bce35", "order_id": "o-1702d18579a9", "market_ticker": "HIGHT-SEA-26AUG31-T91", "side": "no", "action": "sell", "quantity": 15, "price": "0.52", "fee": "0.27", "ts": 1788191340000}}
+{"type": "heartbeat", "ts": 1788191342999}
+{"type": "fill", "msg": {"fill_id": "f-a2a3e67ba5e5", "order_id": "o-1702d18579a9", "market_ticker": "HIGHT-SEA-26AUG31-T91", "side": "no", "action": "sell", "quantity": 39, "price": "0.52", "fee": "0.69", "ts": 1788191343000}}
+{"type": "heartbeat", "ts": 1788191383999}
+{"type": "fill", "msg": {"fill_id": "f-26f44b68fd4e", "order_id": "o-45f9746c3d67", "market_ticker": "HIGHT-BOS-26AUG31-T84", "side": "no", "action": "buy", "quantity": 5, "price": "0.94", "fee": "0.02", "ts": 1788191384000}}
+{"type": "heartbeat", "ts": 1788193666999}
+{"type": "fill", "msg": {"fill_id": "f-bb1eb40b216f", "order_id": "o-accfa5fd2b9a", "market_ticker": "HIGHT-SEA-26AUG31-T91", "side": "yes", "action": "buy", "quantity": 2, "price": "0.44", "fee": "0.04", "ts": 1788193667000}}
+{"type": "fill", "msg": {"fill_id": "f-ff5a24e79b43", "order_id": "o-accfa5fd2b9a", "market_ticker": "HIGHT-SEA-26AUG31-T91", "side": "yes", "action": "buy", "quantity": 21, "price": "0.44", "fee": "0.37", "ts": 1788193668000}}
+{"type": "fill", "msg": {"fill_id": "f-782bd24f8431", "order_id": "o-6ef7f78c991a", "market_ticker": "HIGHT-BOS-26AUG31-T84", "side": "yes", "action": "sell", "quantity": 2, "price": "0.08", "fee": "0.02", "ts": 1788193889000}}
+{"type": "fill", "msg": {"fill_id": "f-e841bec92ad2", "order_id": "o-d8d1d60724d9", "market_ticker": "HIGHT-NYC-26AUG31-T79", "side": "no", "action": "buy", "quantity": 3, "price": "0.80", "fee": "0.04", "ts": 1788194107000}}
+{"type": "fill", "msg": {"fill_id": "f-df4d722aa21f", "order_id": "o-d8d1d60724d9", "market_ticker": "HIGHT-NYC-26AUG31-T79", "side": "no", "action": "buy", "quantity": 1, "price": "0.80", "fee": "0.02", "ts": 1788194110000}}
+{"type": "fill", "msg": {"fill_id": "f-859eb287c1b8", "order_id": "o-561bae86d416", "market_ticker": "HIGHT-NYC-26AUG31-T79", "side": "yes", "action": "sell", "quantity": 3, "price": "0.15", "fee": "0.03", "ts": 1788195367000}}
+{"type": "heartbeat", "ts": 1788195369999}
+{"type": "fill", "msg": {"fill_id": "f-52e5feaab0dd", "order_id": "o-561bae86d416", "market_ticker": "HIGHT-NYC-26AUG31-T79", "side": "yes", "action": "sell", "quantity": 1, "price": "0.15", "fee": "0.01", "ts": 1788195370000}}
+{"type": "fill", "msg": {"fill_id": "f-fce736748424", "order_id": "o-0d675dced521", "market_ticker": "HIGHT-NYC-26AUG31-T79", "side": "yes", "action": "buy", "quantity": 31, "price": "0.17", "fee": "0.31", "ts": 1788200078000}}
+{"type": "heartbeat", "ts": 1788200113999}
+{"type": "fill", "msg": {"fill_id": "f-4451daad5810", "order_id": "o-0c54a49de3e9", "market_ticker": "HIGHT-NYC-26AUG31-T79", "side": "no", "action": "sell", "quantity": 2, "price": "0.89", "fee": "0.02", "ts": 1788200114000}}
+{"type": "fill", "msg": {"fill_id": "f-caf295603d5d", "order_id": "o-0c54a49de3e9", "market_ticker": "HIGHT-NYC-26AUG31-T79", "side": "no", "action": "sell", "quantity": 1, "price": "0.89", "fee": "0.01", "ts": 1788200117000}}
+{"type": "fill", "msg": {"fill_id": "f-24fe273a5cf6", "order_id": "o-d2de49fc9787", "market_ticker": "HIGHT-NYC-26AUG31-T79", "side": "yes", "action": "buy", "quantity": 10, "price": "0.09", "fee": "0.06", "ts": 1788201803000}}
+{"type": "fill", "msg": {"fill_id": "f-f3e5bc4fb0d5", "order_id": "o-7aabcf7b1f3f", "market_ticker": "HIGHT-AUS-26AUG31-T98", "side": "yes", "action": "buy", "quantity": 6, "price": "0.87", "fee": "0.05", "ts": 1788215970000}}
+{"type": "heartbeat", "ts": 1788215971999}
+{"type": "fill", "msg": {"fill_id": "f-51e41a471887", "order_id": "o-7aabcf7b1f3f", "market_ticker": "HIGHT-AUS-26AUG31-T98", "side": "yes", "action": "buy", "quantity": 7, "price": "0.87", "fee": "0.06", "ts": 1788215972000}}

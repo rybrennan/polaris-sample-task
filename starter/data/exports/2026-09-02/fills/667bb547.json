@@ -1,0 +1,32 @@
+{
+ "api_version": 2,
+ "fills": [
+  {
+   "fill_id": "f-f61f8daf1d62",
+   "order_id": "o-5e7c84d5745c",
+   "ticker": "HIGHT-BOS-26SEP01-T43",
+   "side": "yes",
+   "action": "buy",
+   "count": 8,
+   "yes_price": 60,
+   "no_price": 40,
+   "fee": 14,
+   "created_time": "2026-09-01T18:14:19.000Z",
+   "status": "executed"
+  },
+  {
+   "fill_id": "f-5f77c4aa0384",
+   "order_id": "o-5e7c84d5745c",
+   "ticker": "HIGHT-BOS-26SEP01-T43",
+   "side": "yes",
+   "action": "buy",
+   "count": 14,
+   "yes_price": 60,
+   "no_price": 40,
+   "fee": 24,
+   "created_time": "2026-09-01T18:14:18.000Z",
+   "status": "executed"
+  }
+ ],
+ "cursor": null
+}

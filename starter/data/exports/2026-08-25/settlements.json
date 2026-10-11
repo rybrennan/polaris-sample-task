@@ -1,0 +1,30 @@
+{
+ "settlements": [
+  {
+   "ticker": "HIGHT-SFO-26AUG25-T86",
+   "revision": 1,
+   "market_result": "yes",
+   "settled_time": "2026-08-25T23:19:00.000Z",
+   "yes_count": 0,
+   "no_count": 25,
+   "yes_total_cost": 0,
+   "no_total_cost": 475,
+   "fee_cost": 28,
+   "settlement_value": 100,
+   "revenue": 0
+  },
+  {
+   "ticker": "HIGHT-BOS-26AUG25-T75",
+   "revision": 1,
+   "market_result": "no",
+   "settled_time": "2026-08-25T23:30:00.000Z",
+   "yes_count": 30,
+   "no_count": 0,
+   "yes_total_cost": 450,
+   "no_total_cost": 0,
+   "fee_cost": 28,
+   "settlement_value": 0,
+   "revenue": 0
+  }
+ ]
+}

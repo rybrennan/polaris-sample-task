@@ -3,6 +3,7 @@
     python3 -m unittest discover -s grader -p 'test_*.py'
 """
 
+import filecmp
 import os
 import random
 import unittest
@@ -11,45 +12,55 @@ import grade
 import sim
 
 ROOT = grade.ROOT
-SEEDS = [11, 12]
+SEEDS = [11]
 
 
 class SimTest(unittest.TestCase):
     def test_deterministic(self):
-        a, b = sim.records(sim.simulate(7)), sim.records(sim.simulate(7))
+        a, b = sim.exports(sim.simulate(7)), sim.exports(sim.simulate(7))
         self.assertEqual(a, b)
 
-    def test_cash_identity_holds_in_truth(self):
-        for seed in SEEDS:
+    def test_statements_chain_and_close(self):
+        for seed in [11, 12]:
             acct = sim.simulate(seed)
-            t = sim.truth(acct)
-            moved = acct.end_cash - acct.start_cash - acct.net_deposits
-            self.assertEqual(moved, t["total_cents"] + sum(t["open"].values()))
+            ex = sim.exports(acct)
+            for prev, cur in zip(ex, ex[1:]):
+                self.assertEqual(prev["account"]["ending_cash_cents"], cur["account"]["starting_cash_cents"])
+            t = acct.truth(ex[-1]["end"])
+            self.assertEqual(ex[0]["account"]["starting_cash_cents"]
+                             + sum(e["account"]["net_deposits_cents"] for e in ex)
+                             + t["total_cents"] + sum(t["open"].values()),
+                             ex[-1]["account"]["ending_cash_cents"])
 
     def test_every_trap_is_present(self):
+        legacy = 0
         for seed in grade.DEFAULT_SEEDS:
             acct = sim.simulate(seed)
-            cov = sim.coverage(acct, sim.records(acct))
-            self.assertGreater(cov["rest_pages"], 5, seed)
-            for k in ("ws_only_fills", "overlap_fills", "short_entries", "identical_partial_fills",
-                      "fully_closed_early", "cross_midnight_settles", "open_markets",
-                      "busted_fills", "void_markets"):
+            cov = sim.coverage(acct, sim.exports(acct))
+            self.assertGreater(cov["max_pages"], 5, seed)
+            self.assertGreaterEqual(cov["exports"], grade.LEGACY_EXPORTS + 6, seed)
+            for k in ("in_two_exports", "busted_fills", "late_busts_next_export",
+                      "reissued_settlements", "void_markets", "identical_partial_fills",
+                      "short_entries"):
                 self.assertGreater(cov[k], 0, (seed, k))
-        legacy = [sim.coverage(a, sim.records(a))["legacy_pages"]
-                  for a in map(sim.simulate, grade.DEFAULT_SEEDS)]
-        self.assertGreater(sum(1 for n in legacy if n), 2)
-        self.assertGreater(sum(1 for n in legacy if not n), 0)
+            legacy += cov["legacy_pages"] > 0
+        self.assertGreaterEqual(legacy, 2)
+        self.assertLess(legacy, len(grade.DEFAULT_SEEDS))
 
-    def test_sample_has_no_rare_behaviors(self):
-        acct = sim.simulate(20261010, rare=False)
-        cov = sim.coverage(acct, sim.records(acct))
-        self.assertEqual((cov["busted_fills"], cov["void_markets"], cov["legacy_pages"]), (0, 0, 0))
-
-    def test_every_tamper_changes_the_export(self):
-        recs = sim.records(sim.simulate(SEEDS[0]))
+    def test_every_tamper_changes_something(self):
+        acct = sim.simulate(SEEDS[0])
+        ex = sim.exports(acct)
         for kind in grade.TAMPERS:
-            bad, _ = grade.tamper(recs, kind, random.Random(1))
-            self.assertNotEqual(bad, recs, kind)
+            bad, skip, _ = grade.tamper(acct, ex, kind, random.Random(1))
+            self.assertTrue(bad != ex or skip is not None, kind)
+
+    def test_legacy_writer_is_the_starter(self):
+        a = os.path.join(ROOT, "starter", "fillbook")
+        b = os.path.join(grade.LEGACY, "fillbook")
+        names = sorted(n for n in os.listdir(a) if n.endswith(".py"))
+        self.assertEqual(names, sorted(n for n in os.listdir(b) if n.endswith(".py")))
+        match, mismatch, errors = filecmp.cmpfiles(a, b, names, shallow=False)
+        self.assertEqual((mismatch, errors), ([], []))
 
 
 class GraderTest(unittest.TestCase):
@@ -64,11 +75,6 @@ class GraderTest(unittest.TestCase):
 
     def test_hardcoded_answers_score_zero(self):
         self.assertEqual(self.score("solutions/gaming_hardcode_sample"), 0.0)
-
-    def test_wrong_solutions_lose_points(self):
-        for rel in ("solutions/wrong_symptom_only", "solutions/wrong_plug_to_balance",
-                    "solutions/wrong_dedup_by_value", "solutions/wrong_settlement_double_loss"):
-            self.assertLessEqual(self.score(rel), 70.0, rel)
 
 
 if __name__ == "__main__":

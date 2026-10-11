@@ -1,0 +1,97 @@
+{
+ "api_version": 2,
+ "fills": [
+  {
+   "fill_id": "f-c014505f5e2d",
+   "order_id": "o-fff1051e9d7d",
+   "ticker": "HIGHT-SEA-26AUG28-T64",
+   "side": "yes",
+   "action": "buy",
+   "count": 10,
+   "yes_price": 27,
+   "no_price": 73,
+   "fee": 14,
+   "created_time": "2026-08-28T20:40:37.000Z",
+   "status": "executed"
+  },
+  {
+   "fill_id": "f-05d0fd4c3c40",
+   "order_id": "o-a1db3eb120e7",
+   "ticker": "HIGHT-DEN-26AUG28-T79",
+   "side": "yes",
+   "action": "buy",
+   "count": 28,
+   "yes_price": 7,
+   "no_price": 93,
+   "fee": 13,
+   "created_time": "2026-08-28T20:15:55.000Z",
+   "status": "executed"
+  },
+  {
+   "fill_id": "f-c4effbb95d0d",
+   "order_id": "o-a1db3eb120e7",
+   "ticker": "HIGHT-DEN-26AUG28-T79",
+   "side": "yes",
+   "action": "buy",
+   "count": 3,
+   "yes_price": 7,
+   "no_price": 93,
+   "fee": 2,
+   "created_time": "2026-08-28T20:15:52.000Z",
+   "status": "executed"
+  },
+  {
+   "fill_id": "f-b80e78939e6e",
+   "order_id": "o-8471c8f6ad1b",
+   "ticker": "HIGHT-DEN-26AUG28-T79",
+   "side": "no",
+   "action": "sell",
+   "count": 17,
+   "yes_price": 8,
+   "no_price": 92,
+   "fee": 9,
+   "created_time": "2026-08-28T18:37:11.000Z",
+   "status": "executed"
+  },
+  {
+   "fill_id": "f-0c31281657b5",
+   "order_id": "o-189d18d172f7",
+   "ticker": "HIGHT-PHX-26AUG28-T62",
+   "side": "no",
+   "action": "sell",
+   "count": 5,
+   "yes_price": 15,
+   "no_price": 85,
+   "fee": 5,
+   "created_time": "2026-08-28T18:28:48.000Z",
+   "status": "executed"
+  },
+  {
+   "fill_id": "f-b7ee03ba4672",
+   "order_id": "o-189d18d172f7",
+   "ticker": "HIGHT-PHX-26AUG28-T62",
+   "side": "no",
+   "action": "sell",
+   "count": 10,
+   "yes_price": 15,
+   "no_price": 85,
+   "fee": 9,
+   "created_time": "2026-08-28T18:28:47.000Z",
+   "status": "executed"
+  },
+  {
+   "fill_id": "f-14b3208d9716",
+   "order_id": "o-cb7efcb47a7f",
+   "ticker": "HIGHT-SEA-26AUG28-T64",
+   "side": "no",
+   "action": "sell",
+   "count": 34,
+   "yes_price": 24,
+   "no_price": 76,
+   "fee": 44,
+   "created_time": "2026-08-28T18:21:53.000Z",
+   "status": "executed"
+  }
+ ],
+ "cursor": null
+}

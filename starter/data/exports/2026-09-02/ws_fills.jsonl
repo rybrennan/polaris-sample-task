@@ -1,0 +1,52 @@
+{"type": "fill", "msg": {"fill_id": "f-33555242643b", "order_id": "o-f4a600376080", "market_ticker": "HIGHT-SFO-26SEP02-T48", "side": "no", "action": "buy", "quantity": 24, "price": "0.87", "fee": "0.20", "ts": 1788338618000}}
+{"type": "fill", "msg": {"fill_id": "f-b1b70410075e", "order_id": "o-bd4aca8d0ed0", "market_ticker": "HIGHT-DEN-26SEP02-T70", "side": "no", "action": "sell", "quantity": 13, "price": "0.03", "fee": "0.03", "ts": 1788357587000}}
+{"type": "fill", "msg": {"fill_id": "f-faedd85b4592", "order_id": "o-bd4aca8d0ed0", "market_ticker": "HIGHT-DEN-26SEP02-T70", "side": "no", "action": "sell", "quantity": 7, "price": "0.03", "fee": "0.02", "ts": 1788357588000}}
+{"type": "fill", "msg": {"fill_id": "f-9c1f80d6ca38", "order_id": "o-e377b93b7773", "market_ticker": "HIGHT-ATL-26SEP02-T98", "side": "yes", "action": "buy", "quantity": 8, "price": "0.43", "fee": "0.14", "ts": 1788358748000}}
+{"type": "heartbeat", "ts": 1788358750999}
+{"type": "fill", "msg": {"fill_id": "f-09f998de87f4", "order_id": "o-e377b93b7773", "market_ticker": "HIGHT-ATL-26SEP02-T98", "side": "yes", "action": "buy", "quantity": 19, "price": "0.43", "fee": "0.33", "ts": 1788358751000}}
+{"type": "fill", "msg": {"fill_id": "f-6bddbb656c30", "order_id": "o-9df85620d9e7", "market_ticker": "HIGHT-DEN-26SEP02-T70", "side": "yes", "action": "sell", "quantity": 4, "price": "0.94", "fee": "0.02", "ts": 1788359258000}}
+{"type": "fill", "msg": {"fill_id": "f-d64f285fe10a", "order_id": "o-9df85620d9e7", "market_ticker": "HIGHT-DEN-26SEP02-T70", "side": "yes", "action": "sell", "quantity": 2, "price": "0.94", "fee": "0.01", "ts": 1788359259000}}
+{"type": "fill", "msg": {"fill_id": "f-18e715ce272f", "order_id": "o-865b4039e637", "market_ticker": "HIGHT-NYC-26SEP02-T91", "side": "no", "action": "sell", "quantity": 3, "price": "0.11", "fee": "0.03", "ts": 1788359569000}}
+{"type": "fill", "msg": {"fill_id": "f-458ca58c8786", "order_id": "o-865b4039e637", "market_ticker": "HIGHT-NYC-26SEP02-T91", "side": "no", "action": "sell", "quantity": 3, "price": "0.11", "fee": "0.03", "ts": 1788359572000}}
+{"type": "fill", "msg": {"fill_id": "f-bfaf2350c6fd", "order_id": "o-3582393b2cf3", "market_ticker": "HIGHT-ATL-26SEP02-T98", "side": "yes", "action": "buy", "quantity": 4, "price": "0.39", "fee": "0.07", "ts": 1788359997000}}
+{"type": "fill", "msg": {"fill_id": "f-6dc4b0b0415d", "order_id": "o-3582393b2cf3", "market_ticker": "HIGHT-ATL-26SEP02-T98", "side": "yes", "action": "buy", "quantity": 3, "price": "0.39", "fee": "0.05", "ts": 1788359999000}}
+{"type": "fill", "msg": {"fill_id": "f-96e434492619", "order_id": "o-37a1149b9478", "market_ticker": "HIGHT-ATL-26SEP02-T98", "side": "no", "action": "sell", "quantity": 9, "price": "0.61", "fee": "0.15", "ts": 1788360034000}}
+{"type": "fill", "msg": {"fill_id": "f-dba9235da9b9", "order_id": "o-37a1149b9478", "market_ticker": "HIGHT-ATL-26SEP02-T98", "side": "no", "action": "sell", "quantity": 18, "price": "0.61", "fee": "0.30", "ts": 1788360036000}}
+{"type": "fill", "msg": {"fill_id": "f-4f55565df981", "order_id": "o-f57c787f67a7", "market_ticker": "HIGHT-ATL-26SEP02-T98", "side": "yes", "action": "buy", "quantity": 20, "price": "0.45", "fee": "0.35", "ts": 1788361737000}}
+{"type": "heartbeat", "ts": 1788363934999}
+{"type": "fill", "msg": {"fill_id": "f-43b31643a380", "order_id": "o-8ba64f5dda0f", "market_ticker": "HIGHT-DEN-26SEP02-T70", "side": "yes", "action": "sell", "quantity": 1, "price": "0.93", "fee": "0.01", "ts": 1788363935000}}
+{"type": "fill", "msg": {"fill_id": "f-d9c3b84a06a9", "order_id": "o-8ba64f5dda0f", "market_ticker": "HIGHT-DEN-26SEP02-T70", "side": "yes", "action": "sell", "quantity": 6, "price": "0.93", "fee": "0.03", "ts": 1788363936000}}
+{"type": "fill", "msg": {"fill_id": "f-d9a75ee52668", "order_id": "o-b024040fa2de", "market_ticker": "HIGHT-SFO-26SEP02-T48", "side": "no", "action": "sell", "quantity": 14, "price": "0.84", "fee": "0.14", "ts": 1788365263000}}
+{"type": "fill", "msg": {"fill_id": "f-4a3adc3dd93d", "order_id": "o-e77dbff722a3", "market_ticker": "HIGHT-NYC-26SEP02-T91", "side": "yes", "action": "sell", "quantity": 5, "price": "0.85", "fee": "0.05", "ts": 1788366338000}}
+{"type": "heartbeat", "ts": 1788366339999}
+{"type": "fill", "msg": {"fill_id": "f-bf55b7bccd4d", "order_id": "o-e77dbff722a3", "market_ticker": "HIGHT-NYC-26SEP02-T91", "side": "yes", "action": "sell", "quantity": 1, "price": "0.85", "fee": "0.01", "ts": 1788366340000}}
+{"type": "fill", "msg": {"fill_id": "f-c0dfd8f2abb7", "order_id": "o-692caf716f06", "market_ticker": "HIGHT-NYC-26SEP02-T91", "side": "yes", "action": "buy", "quantity": 10, "price": "0.87", "fee": "0.08", "ts": 1788366631000}}
+{"type": "heartbeat", "ts": 1788366633999}
+{"type": "fill", "msg": {"fill_id": "f-83aae499d3bf", "order_id": "o-692caf716f06", "market_ticker": "HIGHT-NYC-26SEP02-T91", "side": "yes", "action": "buy", "quantity": 27, "price": "0.87", "fee": "0.22", "ts": 1788366634000}}
+{"type": "fill_bust", "msg": {"fill_id": "f-c0dfd8f2abb7", "ts": 1788366862000}}
+{"type": "heartbeat", "ts": 1788367157999}
+{"type": "fill", "msg": {"fill_id": "f-0baaf983ab89", "order_id": "o-5310432e4740", "market_ticker": "HIGHT-ATL-26SEP02-T98", "side": "no", "action": "sell", "quantity": 18, "price": "0.60", "fee": "0.31", "ts": 1788367158000}}
+{"type": "fill", "msg": {"fill_id": "f-d47376379113", "order_id": "o-308582fdde7e", "market_ticker": "HIGHT-DEN-26SEP02-T70", "side": "no", "action": "sell", "quantity": 22, "price": "0.05", "fee": "0.08", "ts": 1788368357000}}
+{"type": "heartbeat", "ts": 1788370531999}
+{"type": "fill", "msg": {"fill_id": "f-b84459f1128d", "order_id": "o-ec5e9388a240", "market_ticker": "HIGHT-DEN-26SEP02-T70", "side": "yes", "action": "sell", "quantity": 3, "price": "0.98", "fee": "0.01", "ts": 1788370532000}}
+{"type": "fill", "msg": {"fill_id": "f-31f3f862f46a", "order_id": "o-ec5e9388a240", "market_ticker": "HIGHT-DEN-26SEP02-T70", "side": "yes", "action": "sell", "quantity": 26, "price": "0.98", "fee": "0.04", "ts": 1788370534000}}
+{"type": "fill", "msg": {"fill_id": "f-33241d1d6e58", "order_id": "o-00d571b62dfb", "market_ticker": "HIGHT-SFO-26SEP02-T67", "side": "yes", "action": "buy", "quantity": 3, "price": "0.81", "fee": "0.04", "ts": 1788372515000}}
+{"type": "fill", "msg": {"fill_id": "f-f0afc76ace51", "order_id": "o-00d571b62dfb", "market_ticker": "HIGHT-SFO-26SEP02-T67", "side": "yes", "action": "buy", "quantity": 3, "price": "0.81", "fee": "0.04", "ts": 1788372515000}}
+{"type": "fill", "msg": {"fill_id": "f-4c603e1a5ad1", "order_id": "o-ed7e0f4f52fb", "market_ticker": "HIGHT-ATL-26SEP02-T98", "side": "yes", "action": "buy", "quantity": 30, "price": "0.35", "fee": "0.48", "ts": 1788375184000}}
+{"type": "fill", "msg": {"fill_id": "f-a0567ef9be1c", "order_id": "o-4abf1a3b9dd4", "market_ticker": "HIGHT-ATL-26SEP02-T67", "side": "yes", "action": "buy", "quantity": 35, "price": "0.48", "fee": "0.62", "ts": 1788376164000}}
+{"type": "fill", "msg": {"fill_id": "f-368f6729c6f9", "order_id": "o-0b8400130f28", "market_ticker": "HIGHT-DEN-26SEP02-T96", "side": "no", "action": "buy", "quantity": 2, "price": "0.80", "fee": "0.03", "ts": 1788376896000}}
+{"type": "fill", "msg": {"fill_id": "f-c95ba9ff22d2", "order_id": "o-0b8400130f28", "market_ticker": "HIGHT-DEN-26SEP02-T96", "side": "no", "action": "buy", "quantity": 21, "price": "0.80", "fee": "0.24", "ts": 1788376897000}}
+{"type": "fill", "msg": {"fill_id": "f-a2f450b5ab63", "order_id": "o-5a677acd28e3", "market_ticker": "HIGHT-DEN-26SEP02-T96", "side": "no", "action": "sell", "quantity": 15, "price": "0.86", "fee": "0.13", "ts": 1788378227000}}
+{"type": "heartbeat", "ts": 1788378229999}
+{"type": "fill", "msg": {"fill_id": "f-41f37b594cc8", "order_id": "o-5a677acd28e3", "market_ticker": "HIGHT-DEN-26SEP02-T96", "side": "no", "action": "sell", "quantity": 16, "price": "0.86", "fee": "0.14", "ts": 1788378230000}}
+{"type": "fill", "msg": {"fill_id": "f-0d7861701ad3", "order_id": "o-4f302289635a", "market_ticker": "HIGHT-DEN-26SEP02-T96", "side": "yes", "action": "sell", "quantity": 36, "price": "0.17", "fee": "0.36", "ts": 1788380436000}}
+{"type": "fill", "msg": {"fill_id": "f-5d85e21902c5", "order_id": "o-4f302289635a", "market_ticker": "HIGHT-DEN-26SEP02-T96", "side": "yes", "action": "sell", "quantity": 7, "price": "0.17", "fee": "0.07", "ts": 1788380437000}}
+{"type": "fill", "msg": {"fill_id": "f-952ca9918eca", "order_id": "o-cfe03501c9a8", "market_ticker": "HIGHT-ATL-26SEP02-T67", "side": "yes", "action": "buy", "quantity": 10, "price": "0.46", "fee": "0.18", "ts": 1788381227000}}
+{"type": "fill", "msg": {"fill_id": "f-7cf653a02171", "order_id": "o-cfe03501c9a8", "market_ticker": "HIGHT-ATL-26SEP02-T67", "side": "yes", "action": "buy", "quantity": 1, "price": "0.46", "fee": "0.02", "ts": 1788381230000}}
+{"type": "fill", "msg": {"fill_id": "f-821059b1403d", "order_id": "o-84e63a4d28ba", "market_ticker": "HIGHT-ATL-26SEP02-T67", "side": "yes", "action": "buy", "quantity": 4, "price": "0.50", "fee": "0.07", "ts": 1788383104000}}
+{"type": "fill", "msg": {"fill_id": "f-48844256b767", "order_id": "o-84e63a4d28ba", "market_ticker": "HIGHT-ATL-26SEP02-T67", "side": "yes", "action": "buy", "quantity": 4, "price": "0.50", "fee": "0.07", "ts": 1788383104000}}
+{"type": "fill", "msg": {"fill_id": "f-a8a6c7f0bf4a", "order_id": "o-4058cd9df668", "market_ticker": "HIGHT-DEN-26SEP02-T96", "side": "yes", "action": "sell", "quantity": 7, "price": "0.14", "fee": "0.06", "ts": 1788383223000}}
+{"type": "fill", "msg": {"fill_id": "f-3b9464942ba5", "order_id": "o-ae3ebfd92de9", "market_ticker": "HIGHT-ATL-26SEP02-T67", "side": "yes", "action": "buy", "quantity": 30, "price": "0.51", "fee": "0.53", "ts": 1788385314000}}
+{"type": "heartbeat", "ts": 1788386797999}
+{"type": "fill", "msg": {"fill_id": "f-bae9be7e4ccd", "order_id": "o-0573386ea4ee", "market_ticker": "HIGHT-SFO-26SEP02-T67", "side": "yes", "action": "buy", "quantity": 26, "price": "0.77", "fee": "0.33", "ts": 1788386798000}}
+{"type": "fill", "msg": {"fill_id": "f-4e5ff2026556", "order_id": "o-69c1cb4cde09", "market_ticker": "HIGHT-ATL-26SEP02-T67", "side": "yes", "action": "buy", "quantity": 8, "price": "0.50", "fee": "0.14", "ts": 1788386919000}}
