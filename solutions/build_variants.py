@@ -110,9 +110,8 @@ def dedup_by_value():
 def settlement_double_loss():
     """Correct report, but the cash check forgets pairs netted before settlement."""
     pkg = clone(REFERENCE, "wrong_settlement_double_loss")
-    patch(pkg, "ledger.py", '''    netted = min(s.yes_count, s.no_count)
-    return s.revenue + 100 * netted - s.yes_total_cost - s.no_total_cost - s.fee_cost''',
-          '''    return s.revenue - s.yes_total_cost - s.no_total_cost - s.fee_cost''')
+    patch(pkg, "ledger.py", "return s.revenue + 100 * netted - spent",
+          "return s.revenue - spent  # pairs netted early are forgotten")
 
 
 def no_archived_pages():

@@ -1,4 +1,4 @@
-"""Build the P&L report."""
+"""Builds the P&L report."""
 
 import datetime as dt
 import re
@@ -10,16 +10,20 @@ EVENT_DATE = re.compile(r"-(\d{2})([A-Z]{3})(\d{2})-")
 
 
 def event_date(ticker: str) -> str:
+    """The event date in a ticker: HIGHT-SFO-26SEP04-T71 -> 2026-09-04."""
     m = EVENT_DATE.search(ticker)
     if not m:
         raise ValueError("no event date in ticker %s" % ticker)
-    return dt.datetime.strptime("".join(m.groups()), "%y%b%d").date().isoformat()
+    day = dt.datetime.strptime("".join(m.groups()), "%y%b%d").date()
+    return day.isoformat()
 
 
 def build_report(book: Book) -> dict:
+    """The report in the schema README.md describes."""
     positions = build_positions(book.live_fills())
     markets, open_, by_day = {}, {}, {}
-    # Every market with a settlement row is settled, even if all its fills were busted.
+    # Every market with a settlement row is settled, even if all its fills
+    # were busted.
     for ticker in sorted(set(positions) | set(book.settlements)):
         pos = positions.get(ticker, Position())
         s = book.settlements.get(ticker)
@@ -44,7 +48,8 @@ def format_report(rep: dict) -> str:
         lines.append("%-12s %12s" % (day, dollars(cents)))
     lines.append("-" * 25)
     lines.append("%-12s %12s" % ("TOTAL", dollars(rep["total_cents"])))
-    lines.append("%d settled markets, %d open" % (len(rep["markets"]), len(rep["open"])))
+    lines.append("%d settled markets, %d open"
+                 % (len(rep["markets"]), len(rep["open"])))
     return "\n".join(lines)
 
 

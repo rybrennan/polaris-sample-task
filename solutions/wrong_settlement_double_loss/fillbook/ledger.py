@@ -1,8 +1,9 @@
 """Positions and realized P&L per market.
 
-Every fill is a purchase of `side` at that side's price, whatever `action` says.
-A YES and a NO in one market net into $1.00 cash as soon as both are held.
-At settlement a YES pays `settlement_value` and a NO pays the rest of $1.00.
+Every fill is a purchase of `side` at that side's price, whatever `action`
+says. A YES and a NO in one market net into $1.00 cash as soon as both are
+held. At settlement a YES pays `settlement_value` and a NO pays the rest of
+$1.00.
 """
 
 from collections import defaultdict
@@ -12,6 +13,8 @@ from fillbook.records import Fill, Settlement
 
 
 class Position:
+    """One market's position, built fill by fill."""
+
     def __init__(self):
         self.held = {"yes": 0, "no": 0}
         self.acquired = {"yes": 0, "no": 0}
@@ -31,10 +34,13 @@ class Position:
 
     def cash_flow(self) -> int:
         """Cash moved so far: netting credits minus costs and fees."""
-        return 100 * self.netted - self.cost["yes"] - self.cost["no"] - self.fees
+        spent = self.cost["yes"] + self.cost["no"] + self.fees
+        return 100 * self.netted - spent
 
     def payout(self, yes_value: int) -> int:
-        return self.held["yes"] * yes_value + self.held["no"] * (100 - yes_value)
+        """Paid at settlement when one YES is worth `yes_value` cents."""
+        return (self.held["yes"] * yes_value
+                + self.held["no"] * (100 - yes_value))
 
     def realized(self, s: Settlement) -> int:
         return self.payout(s.settlement_value) + self.cash_flow()
@@ -42,7 +48,9 @@ class Position:
 
 def settlement_realized(s: Settlement) -> int:
     """Realized P&L from the settlement row alone, including early netting."""
-    return s.revenue - s.yes_total_cost - s.no_total_cost - s.fee_cost
+    netted = min(s.yes_count, s.no_count)
+    spent = s.yes_total_cost + s.no_total_cost + s.fee_cost
+    return s.revenue - spent  # pairs netted early are forgotten
 
 
 def build_positions(fills: Iterable[Fill]) -> Dict[str, Position]:

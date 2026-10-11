@@ -1,0 +1,26 @@
+name: grader
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.9", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Grader self-tests
+        run: python -m unittest discover -s grader -p 'test_*.py' -v
+      - name: Starter tests
+        working-directory: starter
+        run: python -m unittest -v
+      - name: Reference scores 100
+        run: |
+          python grader/grade.py solutions/reference --json > result.json
+          python -c "import json; r = json.load(open('result.json')); print(r['score']); assert r['score'] == 100.0, r"

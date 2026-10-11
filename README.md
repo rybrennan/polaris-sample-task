@@ -1,3 +1,5 @@
+[![grader](https://github.com/rybrennan/polaris-sample-task/actions/workflows/ci.yml/badge.svg)](https://github.com/rybrennan/polaris-sample-task/actions/workflows/ci.yml)
+
 # polaris-sample-task: fillbook ledger
 
 A sample long-horizon software engineering task in the Polaris shape: a prompt,

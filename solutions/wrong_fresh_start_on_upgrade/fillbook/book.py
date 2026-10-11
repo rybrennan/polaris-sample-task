@@ -1,18 +1,27 @@
-"""Combine every stored export into one view of the account."""
+"""Combines every stored export into one view of the account."""
 
 import json
 from typing import Dict, List, Set
 
-from fillbook.records import ExportError, Fill, Settlement, from_rest, from_v1, settlement
+from fillbook.records import (ExportError, Fill, Settlement, from_rest,
+                              from_v1, settlement)
 from fillbook.store import Export
 
 
 class Book:
+    """Every live fill, the latest settlement row per market, and the
+    statements, across all stored exports.
+
+    Busts are applied after every export is read, so a bust counts no matter
+    which export carried it or in what order the exports arrived.
+    """
+
     def __init__(self, exports: List[Export]):
         self.exports = exports
         self.fills: Dict[str, Fill] = {}
         self.busted: Set[str] = set()
-        self.settlements: Dict[str, Settlement] = {}   # latest revision per market
+        # latest revision per market
+        self.settlements: Dict[str, Settlement] = {}
         self.statements: List[dict] = []
         for exp in exports:
             self._read(exp)
@@ -20,31 +29,41 @@ class Book:
             self.fills.pop(fid, None)
 
     def _add_fill(self, f: Fill) -> None:
+        """Adds a fill. The same fill_id seen twice must be the same fill."""
         prev = self.fills.get(f.fill_id)
         if prev is None:
             self.fills[f.fill_id] = f
-        elif prev._replace(ts=f.ts) != f or abs((prev.ts - f.ts).total_seconds()) >= 1:
-            raise ExportError("fill %s differs between records: %r vs %r" % (f.fill_id, prev, f))
+        elif (prev._replace(ts=f.ts) != f
+              or abs((prev.ts - f.ts).total_seconds()) >= 1):
+            raise ExportError("fill %s differs between records: %r vs %r"
+                              % (f.fill_id, prev, f))
 
-    def _read(self, exp: Export) -> None:
+    def _read_pages(self, exp: Export) -> None:
+        """Follows the REST cursor chain to the end, refusing gaps and loops."""
         seen = set()
         cursor = "index"
         while cursor is not None:
             if cursor in seen:
-                raise ExportError("%s: cursor loop at page %s" % (exp.export_id, cursor))
+                raise ExportError("%s: cursor loop at page %s"
+                                  % (exp.export_id, cursor))
             seen.add(cursor)
             if cursor not in exp.pages:
-                raise ExportError("%s: missing page %s" % (exp.export_id, cursor))
+                raise ExportError("%s: missing page %s"
+                                  % (exp.export_id, cursor))
             page = json.loads(exp.pages[cursor])
             version = page.get("api_version", 2)
             if version not in (1, 2):
-                raise ExportError("%s: page %s has api_version %r" % (exp.export_id, cursor, version))
+                raise ExportError("%s: page %s has api_version %r"
+                                  % (exp.export_id, cursor, version))
             for r in page["fills"]:
                 f = from_v1(r) if version == 1 else from_rest(r)
                 if r.get("status", "executed") == "busted":
                     self.busted.add(f.fill_id)
                 self._add_fill(f)
             cursor = page.get("cursor")
+
+    def _read(self, exp: Export) -> None:
+        self._read_pages(exp)
         for _, line in sorted(exp.ws.items()):
             msg = json.loads(line)
             if msg.get("type") == "fill":
@@ -61,4 +80,5 @@ class Book:
             self.statements.append(dict(acct, export_id=exp.export_id))
 
     def live_fills(self) -> List[Fill]:
+        """Every fill that was not busted, in time order."""
         return sorted(self.fills.values(), key=lambda f: (f.ts, f.fill_id))

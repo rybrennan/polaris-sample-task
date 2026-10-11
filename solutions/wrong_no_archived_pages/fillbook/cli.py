@@ -1,5 +1,8 @@
+"""Command line: ingest, report, reconcile."""
+
 import argparse
 import json
+from typing import List, Optional
 
 from fillbook.book import Book
 from fillbook.reconcile import check
@@ -8,7 +11,7 @@ from fillbook.report import build_report, format_report
 from fillbook.store import connect, ingest, load_exports
 
 
-def main(argv=None) -> int:
+def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(prog="fillbook")
     sub = ap.add_subparsers(dest="cmd", required=True)
     ip = sub.add_parser("ingest", help="add one daily export to the store")
@@ -16,8 +19,11 @@ def main(argv=None) -> int:
     ip.add_argument("--export", required=True, help="export directory")
     rp = sub.add_parser("report", help="realized P&L from the store")
     rp.add_argument("--store", required=True, help="SQLite store file")
-    rp.add_argument("--json", action="store_true", help="print machine-readable JSON")
-    cp = sub.add_parser("reconcile", help="check the store against itself and the statements")
+    rp.add_argument("--json", action="store_true",
+                    help="print machine-readable JSON")
+    cp = sub.add_parser("reconcile",
+                        help="check the store against itself and the "
+                             "statements")
     cp.add_argument("--store", required=True, help="SQLite store file")
     args = ap.parse_args(argv)
 
@@ -32,7 +38,10 @@ def main(argv=None) -> int:
         return 1
     if args.cmd == "report":
         rep = build_report(book)
-        print(json.dumps(rep, indent=1, sort_keys=True) if args.json else format_report(rep))
+        if args.json:
+            print(json.dumps(rep, indent=1, sort_keys=True))
+        else:
+            print(format_report(rep))
         return 0
     if args.cmd == "reconcile":
         problems = check(book)
